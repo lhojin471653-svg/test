@@ -85,7 +85,7 @@ def db():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(APP_TITLE+" v1.0.1")
+        self.title(APP_TITLE+" v1.0.2")
         self.geometry("1280x800")
         self.minsize(1100,700)
         self.configure(bg=BG)
@@ -100,6 +100,7 @@ class App(tk.Tk):
         self.build()
         self.apply_background_asset()
         self.refresh()
+        self.after(250,self.apply_background_asset)
         self.after(15000, self.check_alarms)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -135,53 +136,52 @@ class App(tk.Tk):
         return img
 
     def apply_background_asset(self):
-        """실제 스킨 자산을 배경/사이드 장식/우측 무드 카드에 적용."""
+        """안정화 스킨 적용: 실제 UI는 팔레트로, 사진 자산은 우측 무드 카드에만 표시."""
         aset=THEME_ASSETS.get(self.skin_name,{})
-        bgp=self.asset_path(aset.get("background"))
-        sidep=self.asset_path(aset.get("sidebar"))
         herop=self.asset_path(aset.get("hero"))
-        self._bg_photo=self._side_photo=self._hero_photo=None
-        if not PIL_OK:
+        self._hero_photo=None
+
+        # 전체 창/패널은 실제 UI 색상으로 유지
+        self.configure(bg=BG)
+        if hasattr(self,"bg_layer"):
+            self.bg_layer.configure(bg=BG,image="")
+        if hasattr(self,"side_art"):
+            self.side_art.configure(bg=BLUE2,image="",text="")
+
+        if not PIL_OK or not herop or not hasattr(self,"mood"):
             return
+
         try:
             self.update_idletasks()
+            w=max(self.mood.winfo_width(),315)
+            h=max(self.mood.winfo_height(),240)
+            himg=self.cover_image(herop,w,h,0)
+            self._hero_photo=ImageTk.PhotoImage(himg)
 
-            # 전체 배경
-            if bgp and hasattr(self,"bg_layer"):
-                w=max(self.winfo_width(),1100); h=max(self.winfo_height(),700)
-                bg=self.cover_image(bgp,w,h,0.04 if self.skin_name!="다크" else 0)
-                self._bg_photo=ImageTk.PhotoImage(bg)
-                self.bg_layer.configure(image=self._bg_photo)
+            # 기존 위젯을 반복 파괴/생성하지 않고 1회만 구성
+            if not hasattr(self,"mood_image_label") or not self.mood_image_label.winfo_exists():
+                self.mood_image_label=tk.Label(self.mood,borderwidth=0)
+                self.mood_image_label.place(x=0,y=0,relwidth=1,relheight=1)
 
-            # 좌측 하단 장식
-            if sidep and hasattr(self,"side_art"):
-                w=max(self.side_art.winfo_width(),180); h=max(self.side_art.winfo_height(),220)
-                simg=self.cover_image(sidep,w,h,0)
-                self._side_photo=ImageTk.PhotoImage(simg)
-                self.side_art.configure(image=self._side_photo)
-
-            # 우측 히어로 카드
-            if herop and hasattr(self,"mood"):
-                w=max(self.mood.winfo_width(),315); h=max(self.mood.winfo_height(),240)
-                himg=self.cover_image(herop,w,h,0)
-                self._hero_photo=ImageTk.PhotoImage(himg)
-                for child in self.mood.winfo_children():
-                    child.destroy()
-                tk.Label(self.mood,image=self._hero_photo,borderwidth=0).place(x=0,y=0,relwidth=1,relheight=1)
-                msg=SKIN_COPY[self.skin_name][1].replace("\n","  ")
-                tk.Label(
-                    self.mood,text=msg,bg=THEMES[self.skin_name]["panel"],
-                    fg=THEMES[self.skin_name]["text"],font=("Malgun Gothic",9,"bold"),
+                self.mood_text_label=tk.Label(
+                    self.mood,font=("Malgun Gothic",9,"bold"),
                     padx=10,pady=5,anchor="w"
-                ).place(relx=.04,rely=.74,relwidth=.92)
+                )
+                self.mood_text_label.place(relx=.04,rely=.74,relwidth=.92)
+
+            self.mood_image_label.configure(image=self._hero_photo)
+            self.mood_text_label.configure(
+                text=SKIN_COPY[self.skin_name][1].replace("\n","  "),
+                bg=THEMES[self.skin_name]["panel"],
+                fg=THEMES[self.skin_name]["text"]
+            )
         except Exception as ex:
             print("skin asset error:",ex)
 
     def on_resize(self,event=None):
-        if getattr(self,"_resize_job",None):
-            try:self.after_cancel(self._resize_job)
-            except:pass
-        self._resize_job=self.after(180,self.apply_background_asset)
+        # 이미지 재렌더링을 창 리사이즈마다 하지 않음.
+        # Tkinter PhotoImage 반복 교체로 생기던 깜박임 방지.
+        return
 
     def load_skin(self):
         self.conn.execute("CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT)")
@@ -228,6 +228,7 @@ class App(tk.Tk):
         self.build()
         self.apply_background_asset()
         self.refresh()
+        self.after(250,self.apply_background_asset)
 
     def ensure_schema(self):
         cols=[r[1] for r in self.conn.execute("PRAGMA table_info(tasks)").fetchall()]
@@ -283,7 +284,6 @@ class App(tk.Tk):
         self.bg_layer=tk.Label(self,bg=BG,borderwidth=0)
         self.bg_layer.place(x=0,y=0,relwidth=1,relheight=1)
         self.bg_layer.lower()
-        self.bind("<Configure>",self.on_resize)
 
         # LEFT SIDEBAR
         side=tk.Frame(self,bg=PANEL,width=190,highlightthickness=1,highlightbackground=BORDER)
@@ -319,11 +319,16 @@ class App(tk.Tk):
         # 좌측 하단은 스킨 이미지가 실제로 보이는 영역
         bottom_side=tk.Frame(side,bg=PANEL)
         bottom_side.pack(side="bottom",fill="x")
-        self.side_art=tk.Label(bottom_side,bg=PANEL,borderwidth=0,height=220)
-        self.side_art.pack(fill="x")
+        self.side_art=tk.Label(
+            bottom_side,bg=BLUE2,fg=TEXT,borderwidth=0,
+            text="오늘도\n좋은 하루가 될 거예요. ♡",
+            font=("Malgun Gothic",9),justify="left",anchor="sw",
+            padx=16,pady=18
+        )
+        self.side_art.pack(fill="x",padx=10,pady=(0,10))
         tk.Label(bottom_side,text=SKIN_COPY[self.skin_name][0],bg=PANEL,fg=MUTED,
                  font=("Malgun Gothic",8),wraplength=150,justify="left").pack(
-                     fill="x",padx=16,pady=(8,16)
+                     fill="x",padx=16,pady=(0,16)
                  )
 
         # CENTER
@@ -371,7 +376,7 @@ class App(tk.Tk):
         self.summary=tk.Frame(right,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
         self.summary.pack(fill="x",pady=(14,0))
 
-        self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER,height=250)
+        self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER,height=230)
         self.mood.pack(fill="both",expand=True,pady=(14,0))
         self.mood.pack_propagate(False)
         tk.Label(self.mood,text=SKIN_COPY[self.skin_name][1],bg=BLUE2,fg=TEXT,
