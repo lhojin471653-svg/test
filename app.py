@@ -85,7 +85,7 @@ def db():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(APP_TITLE+" v1.0.3")
+        self.title(APP_TITLE+" v1.1")
         self.geometry("1280x800")
         self.minsize(1100,700)
         self.configure(bg=BG)
@@ -287,22 +287,21 @@ class App(tk.Tk):
         self.columnconfigure(1,weight=1)
         self.rowconfigure(0,weight=1)
 
-        # 전체 스킨 배경
+        # 전체 배경
         self.bg_layer=tk.Label(self,bg=BG,borderwidth=0)
         self.bg_layer.place(x=0,y=0,relwidth=1,relheight=1)
         self.bg_layer.lower()
 
         # LEFT SIDEBAR
-        side=tk.Frame(self,bg=PANEL,width=190,highlightthickness=1,highlightbackground=BORDER)
+        side=tk.Frame(self,bg=PANEL,width=200,highlightthickness=1,highlightbackground=BORDER)
         side.grid(row=0,column=0,sticky="nsw")
         side.grid_propagate(False)
 
-        top_side=tk.Frame(side,bg=PANEL)
-        top_side.pack(fill="x")
-        tk.Label(top_side,text="✓  오늘 할 일",font=("Malgun Gothic",17,"bold"),
-                 bg=PANEL,fg=TEXT).pack(pady=(25,4))
-        tk.Label(top_side,text=f"{self.skin_name} SKIN",font=("Malgun Gothic",8,"bold"),
-                 bg=PANEL,fg=BLUE).pack(pady=(0,14))
+        brand=tk.Frame(side,bg=PANEL)
+        brand.pack(fill="x",pady=(22,8))
+        tk.Label(brand,text="✓",font=("Malgun Gothic",24,"bold"),bg=PANEL,fg=BLUE).pack()
+        tk.Label(brand,text="오늘 할 일",font=("Malgun Gothic",18,"bold"),bg=PANEL,fg=TEXT).pack()
+        tk.Label(brand,text=f"{self.skin_name} SKIN",font=("Malgun Gothic",8,"bold"),bg=PANEL,fg=BLUE).pack(pady=(2,10))
 
         menu=[
             ("⌂  오늘",self.go_today),
@@ -316,64 +315,80 @@ class App(tk.Tk):
         for txt,cmd in menu:
             active=txt.endswith("오늘")
             tk.Button(
-                top_side,text=txt,command=cmd,anchor="w",relief="flat",bd=0,
-                bg=BLUE2 if active else PANEL,fg=BLUE if active else TEXT,
+                side,text=txt,command=cmd,anchor="w",relief="flat",bd=0,
+                bg=BLUE2 if active else PANEL,
+                fg=BLUE if active else TEXT,
                 activebackground=BLUE2,
+                activeforeground=BLUE if active else TEXT,
                 font=("Malgun Gothic",11,"bold" if active else "normal"),
-                padx=24,pady=9
-            ).pack(fill="x",padx=10,pady=2)
+                padx=22,pady=10
+            ).pack(fill="x",padx=12,pady=2)
 
-        # 좌측 하단은 스킨 이미지가 실제로 보이는 영역
-        bottom_side=tk.Frame(side,bg=PANEL)
-        bottom_side.pack(side="bottom",fill="x")
+        spacer=tk.Frame(side,bg=PANEL)
+        spacer.pack(fill="both",expand=True)
+
         self.side_art=tk.Label(
-            bottom_side,bg=BLUE2,fg=TEXT,borderwidth=0,
-            text="오늘도\n좋은 하루가 될 거예요. ♡",
+            side,bg=BLUE2,fg=TEXT,borderwidth=0,
+            text="오늘도\n좋은 하루가 될 거예요. ♡\n\n작은 한 걸음이\n큰 변화를 만듭니다.",
             font=("Malgun Gothic",9),justify="left",anchor="sw",
-            padx=16,pady=18
+            padx=16,pady=18,wraplength=150
         )
-        self.side_art.pack(fill="x",padx=10,pady=(0,10))
-        tk.Label(bottom_side,text=SKIN_COPY[self.skin_name][0],bg=PANEL,fg=MUTED,
-                 font=("Malgun Gothic",8),wraplength=150,justify="left").pack(
-                     fill="x",padx=16,pady=(0,16)
-                 )
+        self.side_art.pack(fill="x",padx=12,pady=(0,10))
 
-        # CENTER
-        center=tk.Frame(self,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        center.grid(row=0,column=1,sticky="nsew",padx=18,pady=18)
+        # CENTER AREA
+        center=tk.Frame(self,bg=BG)
+        center.grid(row=0,column=1,sticky="nsew",padx=(18,12),pady=18)
         center.columnconfigure(0,weight=1)
-        center.rowconfigure(2,weight=1)
+        center.rowconfigure(3,weight=1)
 
-        self.head=tk.Label(center,text="",font=("Malgun Gothic",23,"bold"),
-                           bg=PANEL,fg=TEXT,anchor="w")
-        self.head.grid(row=0,column=0,sticky="ew",padx=2,pady=(0,2))
-        self.sub=tk.Label(center,text="",font=("Malgun Gothic",10),
-                          bg=PANEL,fg=MUTED,anchor="w")
-        self.sub.grid(row=1,column=0,sticky="ew",padx=2,pady=(0,16))
+        # Header card
+        headcard=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        headcard.grid(row=0,column=0,sticky="ew")
+        headcard.columnconfigure(0,weight=1)
 
-        card=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        card.grid(row=2,column=0,sticky="nsew")
-        card.columnconfigure(0,weight=1)
-        card.rowconfigure(1,weight=1)
+        self.head=tk.Label(headcard,text="",font=("Malgun Gothic",25,"bold"),bg=PANEL,fg=TEXT,anchor="w")
+        self.head.grid(row=0,column=0,sticky="ew",padx=20,pady=(16,0))
 
-        top=tk.Frame(card,bg=PANEL)
-        top.grid(row=0,column=0,sticky="ew",padx=18,pady=15)
-        top.columnconfigure(0,weight=1)
-        self.entry=tk.Entry(top,font=("Malgun Gothic",11),relief="flat",bg=BLUE2,fg=TEXT)
-        self.entry.grid(row=0,column=0,sticky="ew",ipady=10)
-        self.time=tk.Entry(top,font=("Malgun Gothic",10),width=8,justify="center",
-                           relief="flat",bg=BLUE2,fg=TEXT)
+        self.sub=tk.Label(headcard,text="",font=("Malgun Gothic",10),bg=PANEL,fg=MUTED,anchor="w")
+        self.sub.grid(row=1,column=0,sticky="ew",padx=20,pady=(2,16))
+
+        # Add task bar
+        addcard=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        addcard.grid(row=1,column=0,sticky="ew",pady=(12,0))
+        addcard.columnconfigure(0,weight=1)
+
+        self.entry=tk.Entry(addcard,font=("Malgun Gothic",11),relief="flat",bg=BLUE2,fg=TEXT)
+        self.entry.grid(row=0,column=0,sticky="ew",padx=(16,8),pady=14,ipady=9)
+
+        self.time=tk.Entry(addcard,font=("Malgun Gothic",10),width=8,justify="center",relief="flat",bg=BLUE2,fg=TEXT)
         self.time.insert(0,"시간")
-        self.time.grid(row=0,column=1,padx=8,ipady=10)
-        tk.Button(top,text="+ 추가",command=self.add_task,bg=BLUE,fg="white",relief="flat",
-                  font=("Malgun Gothic",10,"bold"),padx=18,pady=9).grid(row=0,column=2)
+        self.time.grid(row=0,column=1,padx=(0,8),pady=14,ipady=9)
+
+        tk.Button(
+            addcard,text="+ 추가",command=self.add_task,bg=BLUE,fg="white",relief="flat",
+            font=("Malgun Gothic",10,"bold"),padx=20,pady=9
+        ).grid(row=0,column=2,padx=(0,16),pady=14)
         self.entry.bind("<Return>",lambda e:self.add_task())
 
-        self.list=tk.Frame(card,bg=PANEL)
-        self.list.grid(row=1,column=0,sticky="nsew",padx=18,pady=(0,15))
+        # Section title / counters
+        titlebar=tk.Frame(center,bg=BG)
+        titlebar.grid(row=2,column=0,sticky="ew",pady=(18,8))
+        tk.Label(titlebar,text="오늘 할 일 목록",font=("Malgun Gothic",14,"bold"),bg=BG,fg=TEXT).pack(side="left")
+
+        self.count_label=tk.Label(titlebar,text="",font=("Malgun Gothic",9),bg=BLUE2,fg=BLUE,padx=10,pady=5)
+        self.count_label.pack(side="right")
+
+        # Task list card
+        listcard=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        listcard.grid(row=3,column=0,sticky="nsew")
+        listcard.columnconfigure(0,weight=1)
+        listcard.rowconfigure(0,weight=1)
+
+        self.list=tk.Frame(listcard,bg=PANEL)
+        self.list.grid(row=0,column=0,sticky="nsew",padx=16,pady=14)
 
         # RIGHT
-        right=tk.Frame(self,bg=PANEL,width=325,highlightthickness=1,highlightbackground=BORDER)
+        right=tk.Frame(self,bg=BG,width=330)
         right.grid(row=0,column=2,sticky="nse",padx=(0,18),pady=18)
         right.grid_propagate(False)
 
@@ -381,10 +396,10 @@ class App(tk.Tk):
         self.calbox.pack(fill="x")
 
         self.summary=tk.Frame(right,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        self.summary.pack(fill="x",pady=(14,0))
+        self.summary.pack(fill="x",pady=(12,0))
 
         self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER,width=315,height=230)
-        self.mood.pack(fill="x",pady=(14,0))
+        self.mood.pack(fill="x",pady=(12,0))
         self.mood.pack_propagate(False)
 
     def go_today(self): self.selected=date.today(); self.cal_year=self.selected.year; self.cal_month=self.selected.month; self.refresh()
