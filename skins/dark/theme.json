@@ -1,0 +1,31 @@
+{
+  "id": "dark",
+  "name_ko": "다크",
+  "version": "1.0",
+  "layout": {
+    "reference_width": 1280,
+    "reference_height": 800,
+    "sidebar_width": 250,
+    "right_panel_width": 330,
+    "corner_radius": 18,
+    "card_radius": 16,
+    "spacing": 16
+  },
+  "colors": {
+    "bg": "#0B1728",
+    "panel": "#122238",
+    "sidebar": "#0F1E33",
+    "text": "#EAF3FF",
+    "muted": "#9CB1CD",
+    "accent": "#318EFF",
+    "accent2": "#173C68",
+    "border": "#29415E"
+  },
+  "assets": {
+    "background": "background_soft.jpg",
+    "sidebar_texture": "sidebar_texture.jpg",
+    "hero": "hero.jpg",
+    "reference": "reference_screen.png"
+  },
+  "ui_rule": "텍스트/체크박스/버튼/달력/입력창은 이미지로 사용하지 않고 실제 Windows UI 컨트롤로 구현"
+}

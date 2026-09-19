@@ -1,0 +1,29 @@
+{
+  "default": "basic",
+  "skins": [
+    {
+      "id": "basic",
+      "name": "기본"
+    },
+    {
+      "id": "emotional",
+      "name": "감성"
+    },
+    {
+      "id": "blossom",
+      "name": "블러썸"
+    },
+    {
+      "id": "dark",
+      "name": "다크"
+    },
+    {
+      "id": "dream",
+      "name": "드림"
+    },
+    {
+      "id": "wood",
+      "name": "우드"
+    }
+  ]
+}

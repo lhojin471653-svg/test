@@ -1,0 +1,31 @@
+{
+  "id": "blossom",
+  "name_ko": "블러썸",
+  "version": "1.0",
+  "layout": {
+    "reference_width": 1280,
+    "reference_height": 800,
+    "sidebar_width": 250,
+    "right_panel_width": 330,
+    "corner_radius": 18,
+    "card_radius": 16,
+    "spacing": 16
+  },
+  "colors": {
+    "bg": "#FFF0F5",
+    "panel": "#FFFDFE",
+    "sidebar": "#FFF3F7",
+    "text": "#6F1739",
+    "muted": "#A56C84",
+    "accent": "#E94A83",
+    "accent2": "#FFDCE8",
+    "border": "#F3C7D8"
+  },
+  "assets": {
+    "background": "background_soft.jpg",
+    "sidebar_texture": "sidebar_texture.jpg",
+    "hero": "hero.jpg",
+    "reference": "reference_screen.png"
+  },
+  "ui_rule": "텍스트/체크박스/버튼/달력/입력창은 이미지로 사용하지 않고 실제 Windows UI 컨트롤로 구현"
+}
