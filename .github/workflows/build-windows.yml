@@ -1,0 +1,39 @@
+name: Build 오늘할일 Windows EXE
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build requirements
+        run: pip install -r requirements-build.txt
+
+      - name: Verify source and skins
+        run: python VERIFY_RELEASE.py
+
+      - name: Build single EXE
+        run: pyinstaller "오늘할일.spec" --noconfirm --clean
+
+      - name: Verify EXE
+        shell: pwsh
+        run: |
+          if (!(Test-Path "dist/오늘할일.exe")) { throw "EXE not created" }
+          Get-Item "dist/오늘할일.exe" | Format-List Name,Length,LastWriteTime
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: 오늘할일-v1.0-Windows
+          path: dist/오늘할일.exe
+          if-no-files-found: error
