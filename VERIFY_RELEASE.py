@@ -16,4 +16,4 @@ for sid in required:
         if not p.exists():
             raise SystemExit(f"누락된 자산: {p}")
 
-print("OK - app.py syntax and 6 skin assets verified")
+print("OK - app.py 문법 및 6종 스킨 자산 검증 완료")
