@@ -85,7 +85,7 @@ def db():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(APP_TITLE+" v1.0.2")
+        self.title(APP_TITLE+" v1.0.3")
         self.geometry("1280x800")
         self.minsize(1100,700)
         self.configure(bg=BG)
@@ -98,9 +98,8 @@ class App(tk.Tk):
         self.selected=date.today()
         self.cal_year=self.selected.year; self.cal_month=self.selected.month
         self.build()
-        self.apply_background_asset()
         self.refresh()
-        self.after(250,self.apply_background_asset)
+        self.apply_background_asset()
         self.after(15000, self.check_alarms)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -136,38 +135,49 @@ class App(tk.Tk):
         return img
 
     def apply_background_asset(self):
-        """안정화 스킨 적용: 실제 UI는 팔레트로, 사진 자산은 우측 무드 카드에만 표시."""
-        aset=THEME_ASSETS.get(self.skin_name,{})
-        herop=self.asset_path(aset.get("hero"))
-        self._hero_photo=None
-
-        # 전체 창/패널은 실제 UI 색상으로 유지
+        """깜박임 방지형 스킨 이미지 적용.
+        - 전체 배경은 순수 색상
+        - 우측 무드 카드 이미지 1장만 사용
+        - PhotoImage는 스킨별 1회 생성 후 캐시
+        """
         self.configure(bg=BG)
         if hasattr(self,"bg_layer"):
             self.bg_layer.configure(bg=BG,image="")
         if hasattr(self,"side_art"):
-            self.side_art.configure(bg=BLUE2,image="",text="")
+            self.side_art.configure(bg=BLUE2,image="")
 
-        if not PIL_OK or not herop or not hasattr(self,"mood"):
+        if not PIL_OK or not hasattr(self,"mood"):
+            return
+
+        if not hasattr(self,"_hero_cache"):
+            self._hero_cache={}
+
+        aset=THEME_ASSETS.get(self.skin_name,{})
+        herop=self.asset_path(aset.get("hero"))
+        if not herop:
             return
 
         try:
-            self.update_idletasks()
-            w=max(self.mood.winfo_width(),315)
-            h=max(self.mood.winfo_height(),240)
-            himg=self.cover_image(herop,w,h,0)
-            self._hero_photo=ImageTk.PhotoImage(himg)
+            # 카드 크기는 고정값 사용: resize 이벤트와 완전히 분리
+            w,h=315,230
+            cache_key=(self.skin_name,w,h)
 
-            # 기존 위젯을 반복 파괴/생성하지 않고 1회만 구성
+            if cache_key not in self._hero_cache:
+                himg=self.cover_image(herop,w,h,0)
+                self._hero_cache[cache_key]=ImageTk.PhotoImage(himg)
+
+            self._hero_photo=self._hero_cache[cache_key]
+
+            # build() 때 한 번 만든 label만 재사용
             if not hasattr(self,"mood_image_label") or not self.mood_image_label.winfo_exists():
-                self.mood_image_label=tk.Label(self.mood,borderwidth=0)
-                self.mood_image_label.place(x=0,y=0,relwidth=1,relheight=1)
+                self.mood_image_label=tk.Label(self.mood,borderwidth=0,bg=BLUE2)
+                self.mood_image_label.place(x=0,y=0,width=w,height=h)
 
                 self.mood_text_label=tk.Label(
                     self.mood,font=("Malgun Gothic",9,"bold"),
                     padx=10,pady=5,anchor="w"
                 )
-                self.mood_text_label.place(relx=.04,rely=.74,relwidth=.92)
+                self.mood_text_label.place(x=12,y=172,width=291,height=42)
 
             self.mood_image_label.configure(image=self._hero_photo)
             self.mood_text_label.configure(
@@ -179,8 +189,6 @@ class App(tk.Tk):
             print("skin asset error:",ex)
 
     def on_resize(self,event=None):
-        # 이미지 재렌더링을 창 리사이즈마다 하지 않음.
-        # Tkinter PhotoImage 반복 교체로 생기던 깜박임 방지.
         return
 
     def load_skin(self):
@@ -226,9 +234,8 @@ class App(tk.Tk):
             child.destroy()
         self.configure(bg=BG)
         self.build()
-        self.apply_background_asset()
         self.refresh()
-        self.after(250,self.apply_background_asset)
+        self.apply_background_asset()
 
     def ensure_schema(self):
         cols=[r[1] for r in self.conn.execute("PRAGMA table_info(tasks)").fetchall()]
@@ -376,13 +383,9 @@ class App(tk.Tk):
         self.summary=tk.Frame(right,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
         self.summary.pack(fill="x",pady=(14,0))
 
-        self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER,height=230)
-        self.mood.pack(fill="both",expand=True,pady=(14,0))
+        self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER,width=315,height=230)
+        self.mood.pack(fill="x",pady=(14,0))
         self.mood.pack_propagate(False)
-        tk.Label(self.mood,text=SKIN_COPY[self.skin_name][1],bg=BLUE2,fg=TEXT,
-                 font=("Malgun Gothic",10),justify="left",anchor="w").pack(
-                     fill="both",expand=True,padx=18,pady=14
-                 )
 
     def go_today(self): self.selected=date.today(); self.cal_year=self.selected.year; self.cal_month=self.selected.month; self.refresh()
     def go_tomorrow(self): self.selected=date.today()+timedelta(days=1); self.cal_year=self.selected.year; self.cal_month=self.selected.month; self.refresh()
