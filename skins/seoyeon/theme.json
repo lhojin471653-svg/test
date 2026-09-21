@@ -26,5 +26,5 @@
     "sidebar_texture": "sidebar_texture.jpg",
     "hero": "hero.jpg"
   },
-  "ui_rule": "서연 개인스킨. 오른쪽 사진은 설정에서 변경 가능하며 UI 컨트롤은 실제 Windows UI로 유지"
+  "ui_rule": "서연 개인스킨. 오른쪽 메인 사진과 왼쪽 세로 모델컷은 설정에서 각각 변경 가능하며 사진 위 오버레이는 사용하지 않음"
 }

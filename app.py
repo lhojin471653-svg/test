@@ -87,7 +87,7 @@ def db():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(APP_TITLE+" v1.2.1 · 서연 개인스킨")
+        self.title(APP_TITLE+" v1.2.2 · 서연 개인스킨")
         self.geometry("1460x900")
         self.minsize(1280,800)
         self.configure(bg=BG)
@@ -188,6 +188,9 @@ class App(tk.Tk):
             return
         if not hasattr(self,"_hero_cache"):
             self._hero_cache={}
+
+        if self.skin_name=="서연":
+            self.apply_side_photo_asset()
 
         aset=THEME_ASSETS.get(self.skin_name,{})
         herop=self.get_current_hero_path(aset)
@@ -301,6 +304,71 @@ class App(tk.Tk):
         aset=aset or THEME_ASSETS.get(self.skin_name,{})
         return self.asset_path(aset.get("hero"))
 
+    def get_current_side_photo_path(self):
+        # 왼쪽 세로 모델컷은 메인 사진과 별도로 저장한다.
+        custom=self.get_setting("seoyeon_side_photo","")
+        if custom:
+            cp=Path(custom)
+            if cp.exists():
+                return cp
+        default=resource_base()/"skins"/"seoyeon"/"side_model.jpg"
+        return default if default.exists() else None
+
+    def apply_side_photo_asset(self):
+        if self.skin_name!="서연" or not PIL_OK or not hasattr(self,"side_model_label"):
+            return
+        path=self.get_current_side_photo_path()
+        if not path:
+            return
+        if not hasattr(self,"_side_photo_cache"):
+            self._side_photo_cache={}
+        try:
+            self.update_idletasks()
+            w=max(130,self.side_model_label.winfo_width())
+            h=max(220,self.side_model_label.winfo_height())
+            key=(str(path),w,h)
+            if key not in self._side_photo_cache:
+                img=self.cover_image(path,w,h,0)
+                self._side_photo_cache[key]=ImageTk.PhotoImage(img)
+            self._side_model_photo=self._side_photo_cache[key]
+            self.side_model_label.configure(image=self._side_model_photo)
+        except Exception as ex:
+            print("side photo error:",ex)
+
+    def choose_seoyeon_side_photo(self, parent=None):
+        path=filedialog.askopenfilename(
+            parent=parent or self,
+            title="서연 스킨 왼쪽 모델컷 선택",
+            filetypes=[("이미지 파일","*.jpg *.jpeg *.png *.webp"),("모든 파일","*.*")]
+        )
+        if not path:
+            return
+        try:
+            src=Path(path)
+            suffix=src.suffix.lower() if src.suffix.lower() in [".jpg",".jpeg",".png",".webp"] else ".jpg"
+            dst=DATA_DIR/("seoyeon_side_photo"+suffix)
+            import shutil
+            shutil.copy2(src,dst)
+            for ext in [".jpg",".jpeg",".png",".webp"]:
+                old=DATA_DIR/("seoyeon_side_photo"+ext)
+                if old!=dst and old.exists():
+                    try: old.unlink()
+                    except Exception: pass
+            self.set_setting("seoyeon_side_photo",str(dst))
+            self._side_photo_cache={}
+            if self.skin_name=="서연":
+                self.apply_side_photo_asset()
+            messagebox.showinfo("모델컷 변경","왼쪽 모델컷을 바꿨어요. ♡",parent=parent or self)
+        except Exception as ex:
+            messagebox.showerror("모델컷 변경 실패",f"사진을 저장하지 못했어요.\n\n{ex}",parent=parent or self)
+
+    def reset_seoyeon_side_photo(self, parent=None):
+        self.set_setting("seoyeon_side_photo","")
+        self._side_photo_cache={}
+        if self.skin_name=="서연":
+            self.apply_side_photo_asset()
+        messagebox.showinfo("기본 모델컷","왼쪽 모델컷을 기본 사진으로 돌아왔어요. ♡",parent=parent or self)
+
     def choose_seoyeon_photo(self, parent=None):
         path=filedialog.askopenfilename(
             parent=parent or self,
@@ -338,19 +406,30 @@ class App(tk.Tk):
         messagebox.showinfo("기본 사진","서연 스킨 기본 사진으로 돌아왔어요. ♡",parent=parent or self)
 
     def open_settings(self):
-        w=tk.Toplevel(self); w.title("설정"); w.geometry("540x520"); w.configure(bg=PANEL); w.transient(self); w.grab_set()
+        w=tk.Toplevel(self); w.title("설정"); w.geometry("540x670"); w.configure(bg=PANEL); w.transient(self); w.grab_set()
         tk.Label(w,text="설정",font=("Malgun Gothic",18,"bold"),bg=PANEL,fg=TEXT).pack(anchor="w",padx=24,pady=(22,6))
         tk.Label(w,text="개인 스킨과 프로그램 설정을 관리합니다.",font=("Malgun Gothic",9),bg=PANEL,fg=MUTED).pack(anchor="w",padx=24,pady=(0,18))
 
         skin_card=tk.Frame(w,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER)
         skin_card.pack(fill="x",padx=24,pady=7)
-        tk.Label(skin_card,text="서연 스킨 사진",font=("Malgun Gothic",12,"bold"),bg=BLUE2,fg=TEXT).pack(anchor="w",padx=16,pady=(14,4))
-        tk.Label(skin_card,text="오른쪽 사진 영역에 표시할 사진을 바꿀 수 있어요.\nJPG · PNG · WEBP 지원 / 원본 비율은 자동으로 맞춰집니다.",
+        tk.Label(skin_card,text="오른쪽 메인 사진",font=("Malgun Gothic",12,"bold"),bg=BLUE2,fg=TEXT).pack(anchor="w",padx=16,pady=(14,4))
+        tk.Label(skin_card,text="오른쪽 큰 사진 영역에 표시할 사진을 바꿀 수 있어요.\nJPG · PNG · WEBP 지원 / 원본 비율은 자동으로 맞춰집니다.",
                  font=("Malgun Gothic",9),bg=BLUE2,fg=MUTED,justify="left").pack(anchor="w",padx=16,pady=(0,10))
         btns=tk.Frame(skin_card,bg=BLUE2); btns.pack(fill="x",padx=16,pady=(0,14))
         tk.Button(btns,text="사진 변경",command=lambda:self.choose_seoyeon_photo(w),bg=BLUE,fg="white",relief="flat",
                   font=("Malgun Gothic",10,"bold"),padx=18,pady=8).pack(side="left")
         tk.Button(btns,text="기본 사진으로 복원",command=lambda:self.reset_seoyeon_photo(w),bg=PANEL,fg=TEXT,relief="flat",
+                  font=("Malgun Gothic",10),padx=14,pady=8).pack(side="left",padx=8)
+
+        side_card=tk.Frame(w,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER)
+        side_card.pack(fill="x",padx=24,pady=7)
+        tk.Label(side_card,text="왼쪽 모델컷",font=("Malgun Gothic",12,"bold"),bg=BLUE2,fg=TEXT).pack(anchor="w",padx=16,pady=(14,4))
+        tk.Label(side_card,text="설정 아래의 세로형 사진 영역에 모델컷을 넣을 수 있어요.\n메인 사진과 별도로 저장되며 자동으로 세로 프레임에 맞춰집니다.",
+                 font=("Malgun Gothic",9),bg=BLUE2,fg=MUTED,justify="left").pack(anchor="w",padx=16,pady=(0,10))
+        side_btns=tk.Frame(side_card,bg=BLUE2); side_btns.pack(fill="x",padx=16,pady=(0,14))
+        tk.Button(side_btns,text="모델컷 변경",command=lambda:self.choose_seoyeon_side_photo(w),bg=BLUE,fg="white",relief="flat",
+                  font=("Malgun Gothic",10,"bold"),padx=18,pady=8).pack(side="left")
+        tk.Button(side_btns,text="기본 사진으로 복원",command=lambda:self.reset_seoyeon_side_photo(w),bg=PANEL,fg=TEXT,relief="flat",
                   font=("Malgun Gothic",10),padx=14,pady=8).pack(side="left",padx=8)
 
         skin_select=tk.Frame(w,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
@@ -480,6 +559,14 @@ class App(tk.Tk):
                       bg=BLUE2 if active else PANEL,fg=BLUE if active else TEXT,
                       activebackground=BLUE2,font=self.ui_font(11,"bold" if active else "normal"),
                       padx=24,pady=12).pack(fill="x",padx=10,pady=(14 if idx==0 else 2,2))
+
+        # 서연 스킨 전용: 설정 아래 빈 공간을 세로형 모델컷으로 사용한다.
+        if self.skin_name=="서연":
+            side_model_frame=tk.Frame(side,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+            side_model_frame.pack(fill="both",expand=True,padx=10,pady=(8,4))
+            self.side_model_label=tk.Label(side_model_frame,bg=BLUE2,borderwidth=0)
+            self.side_model_label.pack(fill="both",expand=True)
+            self.side_model_label.bind("<Configure>",lambda e:self.apply_side_photo_asset())
 
         bottom_side=tk.Frame(side,bg=PANEL)
         bottom_side.pack(side="bottom",fill="x",padx=10,pady=12)

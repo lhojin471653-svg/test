@@ -25,5 +25,8 @@ for key in ["background","sidebar_texture","hero"]:
     p=sd/sdata["assets"][key]
     if not p.exists():
         raise SystemExit(f"누락된 서연 스킨 자산: {p}")
+side_model=sd/"side_model.jpg"
+if not side_model.exists():
+    raise SystemExit(f"누락된 서연 왼쪽 모델컷: {side_model}")
 
-print("OK - app.py syntax and 7 skin assets verified")
+print("OK - app.py syntax, 7 skin assets, and Seoyeon side model verified")
