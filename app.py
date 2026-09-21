@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import sqlite3, calendar
 import winsound
 import sys, json
@@ -27,9 +27,9 @@ DATA_DIR.mkdir(exist_ok=True)
 DB = DATA_DIR / "today.db"
 
 
-SKIN_ORDER = ["기본","감성","블러썸","다크","드림","우드"]
+SKIN_ORDER = ["기본","감성","블러썸","서연","다크","드림","우드"]
 SKIN_ID = {
-    "기본":"basic","감성":"emotional","블러썸":"blossom",
+    "기본":"basic","감성":"emotional","블러썸":"blossom","서연":"seoyeon",
     "다크":"dark","드림":"dream","우드":"wood"
 }
 
@@ -66,6 +66,7 @@ SKIN_COPY = {
     "기본": ("작은 계획이 좋은 하루를 만듭니다.", "지금 하는 일이\n좋은 결과로 이어질 거예요. 🌿"),
     "감성": ("하루를 더 특별하게, 원하는 스타일로.", "오늘도\n충분히 잘하고 있어요.\n조금만 더 힘내요! ♡"),
     "블러썸": ("오늘도 좋은 하루 보내요! ♡", "오늘도\n예쁜 하루가 될 거예요.\n언제나 응원해요! ♡"),
+    "서연": ("오빠 사랑해~\n나랑 놀자~ ♡", "오늘도\n좋은 하루 보내요! ♡"),
     "다크": ("집중할 땐 조용하고 편안하게.", "지금도 충분히 잘하고 있어요.\n좋은 하루 마무리하세요. 🌙"),
     "드림": ("맑은 하루 되세요! ☀", "오늘도\n좋은 일이 가득하길! 🌿"),
     "우드": ("하나씩, 차근차근.", "오늘도\n되어있는 하루가 되길. ♡"),
@@ -85,7 +86,7 @@ def db():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(APP_TITLE+" v1.1")
+        self.title(APP_TITLE+" v1.1.0 · 서연 개인스킨")
         self.geometry("1280x800")
         self.minsize(1100,700)
         self.configure(bg=BG)
@@ -153,13 +154,13 @@ class App(tk.Tk):
             self._hero_cache={}
 
         aset=THEME_ASSETS.get(self.skin_name,{})
-        herop=self.asset_path(aset.get("hero"))
+        herop=self.get_current_hero_path(aset)
         if not herop:
             return
 
         try:
-            # 카드 크기는 고정값 사용: resize 이벤트와 완전히 분리
-            w,h=315,230
+            # 서연 개인스킨은 사진 영역을 더 크게 사용
+            w,h=(380,320) if self.skin_name=="서연" else (315,230)
             cache_key=(self.skin_name,w,h)
 
             if cache_key not in self._hero_cache:
@@ -177,7 +178,8 @@ class App(tk.Tk):
                     self.mood,font=("Malgun Gothic",9,"bold"),
                     padx=10,pady=5,anchor="w"
                 )
-                self.mood_text_label.place(x=12,y=172,width=291,height=42)
+                text_y=h-58
+                self.mood_text_label.place(x=12,y=text_y,width=w-24,height=46)
 
             self.mood_image_label.configure(image=self._hero_photo)
             self.mood_text_label.configure(
@@ -195,10 +197,6 @@ class App(tk.Tk):
         self.conn.execute("CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT)")
         self.conn.commit()
         row=self.conn.execute("SELECT value FROM settings WHERE key='skin'").fetchone()
-        if row and row[0]=="서연":
-            self.conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('skin','블러썸')")
-            self.conn.commit()
-            return "블러썸"
         return row[0] if row and row[0] in THEMES else "기본"
 
     def apply_palette(self):
@@ -208,11 +206,11 @@ class App(tk.Tk):
         TEXT=t["text"]; MUTED=t["muted"]; BORDER=t["border"]; DONE=t["done"]
 
     def choose_skin(self):
-        w=tk.Toplevel(self); w.title("스킨 선택"); w.geometry("560x390"); w.configure(bg=PANEL); w.transient(self); w.grab_set()
+        w=tk.Toplevel(self); w.title("스킨 선택"); w.geometry("560x470"); w.configure(bg=PANEL); w.transient(self); w.grab_set()
         tk.Label(w,text="오늘은 어떤 스킨으로 할까요? ♡",font=("Malgun Gothic",15,"bold"),bg=PANEL,fg=TEXT).pack(pady=(22,15))
         box=tk.Frame(w,bg=PANEL); box.pack(fill="both",expand=True,padx=20)
         names=[n for n in SKIN_ORDER if n in THEMES]
-        labels={"기본":"기본  ·  깔끔한 기본형","감성":"감성  ·  따뜻한 베이지","블러썸":"블러썸  ·  사랑스러운 핑크","다크":"다크  ·  눈이 편한 모드","드림":"드림  ·  하늘 & 바다","우드":"우드  ·  작업공간 느낌"}
+        labels={"기본":"기본  ·  깔끔한 기본형","감성":"감성  ·  따뜻한 베이지","블러썸":"블러썸  ·  사랑스러운 핑크","서연":"서연  ·  호진오빠 전용 ♡","다크":"다크  ·  눈이 편한 모드","드림":"드림  ·  하늘 & 바다","우드":"우드  ·  작업공간 느낌"}
         for i,name in enumerate(names):
             t=THEMES[name]
             def select(n=name):
@@ -226,8 +224,87 @@ class App(tk.Tk):
                         font=("Malgun Gothic",11,"bold"),width=21,pady=14)
             b.grid(row=i//2,column=i%2,padx=8,pady=8,sticky="ew")
         box.columnconfigure(0,weight=1); box.columnconfigure(1,weight=1)
-        tk.Label(w,text="※ 블러썸 스킨은 인물 사진 없이 꽃과 로즈핑크 디자인으로 적용됩니다.\n6종 모두 확정된 스킨 이미지가 전체 화면 분위기와 히어로 카드에 적용됩니다.",
+        tk.Label(w,text="※ 서연 스킨의 사진은 설정에서 언제든 바꿀 수 있습니다.\n기존 6종 스킨은 그대로 유지됩니다.",
                  bg=PANEL,fg=MUTED,font=("Malgun Gothic",9),justify="center").pack(pady=(0,14))
+
+    def get_setting(self,key,default=""):
+        row=self.conn.execute("SELECT value FROM settings WHERE key=?",(key,)).fetchone()
+        return row[0] if row else default
+
+    def set_setting(self,key,value):
+        self.conn.execute("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)",(key,str(value)))
+        self.conn.commit()
+
+    def get_current_hero_path(self, aset=None):
+        # 서연 스킨은 사용자가 설정에서 선택한 사진을 우선 사용
+        if self.skin_name=="서연":
+            custom=self.get_setting("seoyeon_photo","")
+            if custom:
+                cp=Path(custom)
+                if cp.exists():
+                    return cp
+        aset=aset or THEME_ASSETS.get(self.skin_name,{})
+        return self.asset_path(aset.get("hero"))
+
+    def choose_seoyeon_photo(self, parent=None):
+        path=filedialog.askopenfilename(
+            parent=parent or self,
+            title="서연 스킨 사진 선택",
+            filetypes=[("이미지 파일","*.jpg *.jpeg *.png *.webp"),("모든 파일","*.*")]
+        )
+        if not path:
+            return
+        try:
+            # 원본 위치가 바뀌어도 유지되도록 앱 데이터 폴더에 복사 저장
+            src=Path(path)
+            suffix=src.suffix.lower() if src.suffix.lower() in [".jpg",".jpeg",".png",".webp"] else ".jpg"
+            dst=DATA_DIR/("seoyeon_photo"+suffix)
+            import shutil
+            shutil.copy2(src,dst)
+            # 과거 다른 확장자 사본 정리
+            for ext in [".jpg",".jpeg",".png",".webp"]:
+                old=DATA_DIR/("seoyeon_photo"+ext)
+                if old!=dst and old.exists():
+                    try: old.unlink()
+                    except Exception: pass
+            self.set_setting("seoyeon_photo",str(dst))
+            self._hero_cache={}
+            if self.skin_name=="서연":
+                self.apply_background_asset()
+            messagebox.showinfo("사진 변경","서연 스킨 사진을 바꿨어요. ♡",parent=parent or self)
+        except Exception as ex:
+            messagebox.showerror("사진 변경 실패",f"사진을 저장하지 못했어요.\n\n{ex}",parent=parent or self)
+
+    def reset_seoyeon_photo(self, parent=None):
+        self.set_setting("seoyeon_photo","")
+        self._hero_cache={}
+        if self.skin_name=="서연":
+            self.apply_background_asset()
+        messagebox.showinfo("기본 사진","서연 스킨 기본 사진으로 돌아왔어요. ♡",parent=parent or self)
+
+    def open_settings(self):
+        w=tk.Toplevel(self); w.title("설정"); w.geometry("520x420"); w.configure(bg=PANEL); w.transient(self); w.grab_set()
+        tk.Label(w,text="설정",font=("Malgun Gothic",18,"bold"),bg=PANEL,fg=TEXT).pack(anchor="w",padx=24,pady=(22,6))
+        tk.Label(w,text="개인 스킨과 프로그램 설정을 관리합니다.",font=("Malgun Gothic",9),bg=PANEL,fg=MUTED).pack(anchor="w",padx=24,pady=(0,18))
+
+        skin_card=tk.Frame(w,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER)
+        skin_card.pack(fill="x",padx=24,pady=7)
+        tk.Label(skin_card,text="서연 스킨 사진",font=("Malgun Gothic",12,"bold"),bg=BLUE2,fg=TEXT).pack(anchor="w",padx=16,pady=(14,4))
+        tk.Label(skin_card,text="오른쪽 사진 영역에 표시할 사진을 바꿀 수 있어요.\nJPG · PNG · WEBP 지원 / 원본 비율은 자동으로 맞춰집니다.",
+                 font=("Malgun Gothic",9),bg=BLUE2,fg=MUTED,justify="left").pack(anchor="w",padx=16,pady=(0,10))
+        btns=tk.Frame(skin_card,bg=BLUE2); btns.pack(fill="x",padx=16,pady=(0,14))
+        tk.Button(btns,text="사진 변경",command=lambda:self.choose_seoyeon_photo(w),bg=BLUE,fg="white",relief="flat",
+                  font=("Malgun Gothic",10,"bold"),padx=18,pady=8).pack(side="left")
+        tk.Button(btns,text="기본 사진으로 복원",command=lambda:self.reset_seoyeon_photo(w),bg=PANEL,fg=TEXT,relief="flat",
+                  font=("Malgun Gothic",10),padx=14,pady=8).pack(side="left",padx=8)
+
+        skin_select=tk.Frame(w,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        skin_select.pack(fill="x",padx=24,pady=7)
+        tk.Label(skin_select,text="스킨",font=("Malgun Gothic",11,"bold"),bg=PANEL,fg=TEXT).pack(side="left",padx=16,pady=14)
+        tk.Button(skin_select,text="스킨 선택 열기",command=lambda:(w.destroy(),self.choose_skin()),bg=BLUE2,fg=TEXT,relief="flat",padx=14,pady=7).pack(side="right",padx=14)
+
+        tk.Label(w,text="서연 스킨 문구  ·  오빠 사랑해~  나랑 놀자~ ♡",bg=PANEL,fg=BLUE,
+                 font=("Malgun Gothic",9,"bold")).pack(anchor="w",padx=24,pady=(14,0))
 
     def rebuild_ui(self):
         for child in self.winfo_children():
@@ -287,21 +364,22 @@ class App(tk.Tk):
         self.columnconfigure(1,weight=1)
         self.rowconfigure(0,weight=1)
 
-        # 전체 배경
+        # 전체 스킨 배경
         self.bg_layer=tk.Label(self,bg=BG,borderwidth=0)
         self.bg_layer.place(x=0,y=0,relwidth=1,relheight=1)
         self.bg_layer.lower()
 
         # LEFT SIDEBAR
-        side=tk.Frame(self,bg=PANEL,width=200,highlightthickness=1,highlightbackground=BORDER)
+        side=tk.Frame(self,bg=PANEL,width=190,highlightthickness=1,highlightbackground=BORDER)
         side.grid(row=0,column=0,sticky="nsw")
         side.grid_propagate(False)
 
-        brand=tk.Frame(side,bg=PANEL)
-        brand.pack(fill="x",pady=(22,8))
-        tk.Label(brand,text="✓",font=("Malgun Gothic",24,"bold"),bg=PANEL,fg=BLUE).pack()
-        tk.Label(brand,text="오늘 할 일",font=("Malgun Gothic",18,"bold"),bg=PANEL,fg=TEXT).pack()
-        tk.Label(brand,text=f"{self.skin_name} SKIN",font=("Malgun Gothic",8,"bold"),bg=PANEL,fg=BLUE).pack(pady=(2,10))
+        top_side=tk.Frame(side,bg=PANEL)
+        top_side.pack(fill="x")
+        tk.Label(top_side,text="✓  오늘 할 일",font=("Malgun Gothic",17,"bold"),
+                 bg=PANEL,fg=TEXT).pack(pady=(25,4))
+        tk.Label(top_side,text=f"{self.skin_name} SKIN",font=("Malgun Gothic",8,"bold"),
+                 bg=PANEL,fg=BLUE).pack(pady=(0,14))
 
         menu=[
             ("⌂  오늘",self.go_today),
@@ -310,85 +388,70 @@ class App(tk.Tk):
             ("▤  메모",self.show_memos),
             ("◉  통계",self.show_stats),
             ("◌  스킨",self.choose_skin),
-            ("⚙  설정",self.choose_skin)
+            ("⚙  설정",self.open_settings)
         ]
         for txt,cmd in menu:
             active=txt.endswith("오늘")
             tk.Button(
-                side,text=txt,command=cmd,anchor="w",relief="flat",bd=0,
-                bg=BLUE2 if active else PANEL,
-                fg=BLUE if active else TEXT,
+                top_side,text=txt,command=cmd,anchor="w",relief="flat",bd=0,
+                bg=BLUE2 if active else PANEL,fg=BLUE if active else TEXT,
                 activebackground=BLUE2,
-                activeforeground=BLUE if active else TEXT,
                 font=("Malgun Gothic",11,"bold" if active else "normal"),
-                padx=22,pady=10
-            ).pack(fill="x",padx=12,pady=2)
+                padx=24,pady=9
+            ).pack(fill="x",padx=10,pady=2)
 
-        spacer=tk.Frame(side,bg=PANEL)
-        spacer.pack(fill="both",expand=True)
-
+        # 좌측 하단은 스킨 이미지가 실제로 보이는 영역
+        bottom_side=tk.Frame(side,bg=PANEL)
+        bottom_side.pack(side="bottom",fill="x")
         self.side_art=tk.Label(
-            side,bg=BLUE2,fg=TEXT,borderwidth=0,
-            text="오늘도\n좋은 하루가 될 거예요. ♡\n\n작은 한 걸음이\n큰 변화를 만듭니다.",
+            bottom_side,bg=BLUE2,fg=TEXT,borderwidth=0,
+            text=("오빠 사랑해~\n나랑 놀자~ ♡" if self.skin_name=="서연" else "오늘도\n좋은 하루가 될 거예요. ♡"),
             font=("Malgun Gothic",9),justify="left",anchor="sw",
-            padx=16,pady=18,wraplength=150
+            padx=16,pady=18
         )
-        self.side_art.pack(fill="x",padx=12,pady=(0,10))
+        self.side_art.pack(fill="x",padx=10,pady=(0,10))
+        tk.Label(bottom_side,text=SKIN_COPY[self.skin_name][0],bg=PANEL,fg=MUTED,
+                 font=("Malgun Gothic",8),wraplength=150,justify="left").pack(
+                     fill="x",padx=16,pady=(0,16)
+                 )
 
-        # CENTER AREA
-        center=tk.Frame(self,bg=BG)
-        center.grid(row=0,column=1,sticky="nsew",padx=(18,12),pady=18)
+        # CENTER
+        center=tk.Frame(self,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        center.grid(row=0,column=1,sticky="nsew",padx=18,pady=18)
         center.columnconfigure(0,weight=1)
-        center.rowconfigure(3,weight=1)
+        center.rowconfigure(2,weight=1)
 
-        # Header card
-        headcard=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        headcard.grid(row=0,column=0,sticky="ew")
-        headcard.columnconfigure(0,weight=1)
+        self.head=tk.Label(center,text="",font=("Malgun Gothic",23,"bold"),
+                           bg=PANEL,fg=TEXT,anchor="w")
+        self.head.grid(row=0,column=0,sticky="ew",padx=2,pady=(0,2))
+        self.sub=tk.Label(center,text="",font=("Malgun Gothic",10),
+                          bg=PANEL,fg=MUTED,anchor="w")
+        self.sub.grid(row=1,column=0,sticky="ew",padx=2,pady=(0,16))
 
-        self.head=tk.Label(headcard,text="",font=("Malgun Gothic",25,"bold"),bg=PANEL,fg=TEXT,anchor="w")
-        self.head.grid(row=0,column=0,sticky="ew",padx=20,pady=(16,0))
+        card=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        card.grid(row=2,column=0,sticky="nsew")
+        card.columnconfigure(0,weight=1)
+        card.rowconfigure(1,weight=1)
 
-        self.sub=tk.Label(headcard,text="",font=("Malgun Gothic",10),bg=PANEL,fg=MUTED,anchor="w")
-        self.sub.grid(row=1,column=0,sticky="ew",padx=20,pady=(2,16))
-
-        # Add task bar
-        addcard=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        addcard.grid(row=1,column=0,sticky="ew",pady=(12,0))
-        addcard.columnconfigure(0,weight=1)
-
-        self.entry=tk.Entry(addcard,font=("Malgun Gothic",11),relief="flat",bg=BLUE2,fg=TEXT)
-        self.entry.grid(row=0,column=0,sticky="ew",padx=(16,8),pady=14,ipady=9)
-
-        self.time=tk.Entry(addcard,font=("Malgun Gothic",10),width=8,justify="center",relief="flat",bg=BLUE2,fg=TEXT)
+        top=tk.Frame(card,bg=PANEL)
+        top.grid(row=0,column=0,sticky="ew",padx=18,pady=15)
+        top.columnconfigure(0,weight=1)
+        self.entry=tk.Entry(top,font=("Malgun Gothic",11),relief="flat",bg=BLUE2,fg=TEXT)
+        self.entry.grid(row=0,column=0,sticky="ew",ipady=10)
+        self.time=tk.Entry(top,font=("Malgun Gothic",10),width=8,justify="center",
+                           relief="flat",bg=BLUE2,fg=TEXT)
         self.time.insert(0,"시간")
-        self.time.grid(row=0,column=1,padx=(0,8),pady=14,ipady=9)
-
-        tk.Button(
-            addcard,text="+ 추가",command=self.add_task,bg=BLUE,fg="white",relief="flat",
-            font=("Malgun Gothic",10,"bold"),padx=20,pady=9
-        ).grid(row=0,column=2,padx=(0,16),pady=14)
+        self.time.grid(row=0,column=1,padx=8,ipady=10)
+        tk.Button(top,text="+ 추가",command=self.add_task,bg=BLUE,fg="white",relief="flat",
+                  font=("Malgun Gothic",10,"bold"),padx=18,pady=9).grid(row=0,column=2)
         self.entry.bind("<Return>",lambda e:self.add_task())
 
-        # Section title / counters
-        titlebar=tk.Frame(center,bg=BG)
-        titlebar.grid(row=2,column=0,sticky="ew",pady=(18,8))
-        tk.Label(titlebar,text="오늘 할 일 목록",font=("Malgun Gothic",14,"bold"),bg=BG,fg=TEXT).pack(side="left")
-
-        self.count_label=tk.Label(titlebar,text="",font=("Malgun Gothic",9),bg=BLUE2,fg=BLUE,padx=10,pady=5)
-        self.count_label.pack(side="right")
-
-        # Task list card
-        listcard=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        listcard.grid(row=3,column=0,sticky="nsew")
-        listcard.columnconfigure(0,weight=1)
-        listcard.rowconfigure(0,weight=1)
-
-        self.list=tk.Frame(listcard,bg=PANEL)
-        self.list.grid(row=0,column=0,sticky="nsew",padx=16,pady=14)
+        self.list=tk.Frame(card,bg=PANEL)
+        self.list.grid(row=1,column=0,sticky="nsew",padx=18,pady=(0,15))
 
         # RIGHT
-        right=tk.Frame(self,bg=BG,width=330)
+        right_w=390 if self.skin_name=="서연" else 325
+        right=tk.Frame(self,bg=PANEL,width=right_w,highlightthickness=1,highlightbackground=BORDER)
         right.grid(row=0,column=2,sticky="nse",padx=(0,18),pady=18)
         right.grid_propagate(False)
 
@@ -396,10 +459,11 @@ class App(tk.Tk):
         self.calbox.pack(fill="x")
 
         self.summary=tk.Frame(right,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        self.summary.pack(fill="x",pady=(12,0))
+        self.summary.pack(fill="x",pady=(14,0))
 
-        self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER,width=315,height=230)
-        self.mood.pack(fill="x",pady=(12,0))
+        mood_w,mood_h=((380,320) if self.skin_name=="서연" else (315,230))
+        self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER,width=mood_w,height=mood_h)
+        self.mood.pack(fill="x",pady=(14,0))
         self.mood.pack_propagate(False)
 
     def go_today(self): self.selected=date.today(); self.cal_year=self.selected.year; self.cal_month=self.selected.month; self.refresh()

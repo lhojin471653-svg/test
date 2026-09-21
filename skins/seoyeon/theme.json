@@ -1,0 +1,30 @@
+{
+  "id": "seoyeon",
+  "name_ko": "서연",
+  "version": "1.0",
+  "layout": {
+    "reference_width": 1280,
+    "reference_height": 800,
+    "sidebar_width": 190,
+    "right_panel_width": 390,
+    "corner_radius": 18,
+    "card_radius": 16,
+    "spacing": 16
+  },
+  "colors": {
+    "bg": "#FFF0F5",
+    "panel": "#FFFDFE",
+    "sidebar": "#FFF3F7",
+    "text": "#6F1739",
+    "muted": "#A56C84",
+    "accent": "#E94A83",
+    "accent2": "#FFDCE8",
+    "border": "#F3C7D8"
+  },
+  "assets": {
+    "background": "background_soft.jpg",
+    "sidebar_texture": "sidebar_texture.jpg",
+    "hero": "hero.jpg"
+  },
+  "ui_rule": "서연 개인스킨. 오른쪽 사진은 설정에서 변경 가능하며 UI 컨트롤은 실제 Windows UI로 유지"
+}
