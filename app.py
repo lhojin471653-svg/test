@@ -87,7 +87,7 @@ def db():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(APP_TITLE+" v1.2.0 · 서연 개인스킨")
+        self.title(APP_TITLE+" v1.2.1 · 서연 개인스킨")
         self.geometry("1460x900")
         self.minsize(1280,800)
         self.configure(bg=BG)
@@ -207,25 +207,41 @@ class App(tk.Tk):
             if not hasattr(self,"mood_image_label") or not self.mood_image_label.winfo_exists():
                 self.mood_image_label=tk.Label(self.mood,borderwidth=0,bg=BLUE2)
                 self.mood_image_label.place(x=0,y=0,relwidth=1,relheight=1)
-                self.mood_text_label=tk.Label(
-                    self.mood,font=(self.hand_font_family,11),
-                    padx=12,pady=7,anchor="w"
-                )
-                self.mood_text_label.place(relx=0.05,rely=0.78,relwidth=0.62,height=62)
-                self.mood_change_hint=tk.Label(
-                    self.mood,text="설정에서 사진 변경",font=self.ui_font(8),
-                    padx=9,pady=5,bg=THEMES[self.skin_name]["panel"],fg=THEMES[self.skin_name]["muted"]
-                )
-                self.mood_change_hint.place(relx=0.66,rely=0.93,relwidth=0.30,height=30)
 
             self.mood_image_label.configure(image=self._hero_photo)
-            self.mood_text_label.configure(
-                text=SKIN_COPY[self.skin_name][1],
-                bg=THEMES[self.skin_name]["panel"],
-                fg=THEMES[self.skin_name]["text"],
-                font=(self.hand_font_family,11),
-                justify="left", anchor="w"
-            )
+
+            # 서연 개인스킨은 사진 자체가 주인공이므로 사진 위 오버레이를 두지 않는다.
+            # 사진 변경은 설정 화면에서만 제공한다.
+            if self.skin_name == "서연":
+                if hasattr(self,"mood_text_label") and self.mood_text_label.winfo_exists():
+                    self.mood_text_label.place_forget()
+                if hasattr(self,"mood_change_hint") and self.mood_change_hint.winfo_exists():
+                    self.mood_change_hint.place_forget()
+            else:
+                if not hasattr(self,"mood_text_label") or not self.mood_text_label.winfo_exists():
+                    self.mood_text_label=tk.Label(
+                        self.mood,font=(self.hand_font_family,11),
+                        padx=12,pady=7,anchor="w"
+                    )
+                self.mood_text_label.configure(
+                    text=SKIN_COPY[self.skin_name][1],
+                    bg=THEMES[self.skin_name]["panel"],
+                    fg=THEMES[self.skin_name]["text"],
+                    font=(self.hand_font_family,11),
+                    justify="left", anchor="w"
+                )
+                self.mood_text_label.place(relx=0.05,rely=0.78,relwidth=0.62,height=62)
+
+                if not hasattr(self,"mood_change_hint") or not self.mood_change_hint.winfo_exists():
+                    self.mood_change_hint=tk.Label(
+                        self.mood,text="설정에서 사진 변경",font=self.ui_font(8),
+                        padx=9,pady=5
+                    )
+                self.mood_change_hint.configure(
+                    bg=THEMES[self.skin_name]["panel"],
+                    fg=THEMES[self.skin_name]["muted"]
+                )
+                self.mood_change_hint.place(relx=0.66,rely=0.93,relwidth=0.30,height=30)
         except Exception as ex:
             print("skin asset error:",ex)
 
