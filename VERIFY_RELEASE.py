@@ -29,4 +29,10 @@ side_model=sd/"side_model.jpg"
 if not side_model.exists():
     raise SystemExit(f"누락된 서연 왼쪽 모델컷: {side_model}")
 
-print("OK - app.py syntax, 7 skin assets, and Seoyeon side model verified")
+
+# v1.2.3 하루 한마디 기본 검증
+app_text=(root/"app.py").read_text(encoding="utf-8")
+if "SEOYEON_DAILY_MESSAGES" not in app_text or "seoyeon_daily_message" not in app_text:
+    raise SystemExit("서연 하루 한마디 기능이 누락되었습니다.")
+
+print("OK - app.py syntax, 7 skin assets, Seoyeon side model, and daily-message feature verified")
