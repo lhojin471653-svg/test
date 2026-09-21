@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import tkinter.font as tkfont
 import sqlite3, calendar
 import winsound
 import sys, json
@@ -66,7 +67,7 @@ SKIN_COPY = {
     "기본": ("작은 계획이 좋은 하루를 만듭니다.", "지금 하는 일이\n좋은 결과로 이어질 거예요. 🌿"),
     "감성": ("하루를 더 특별하게, 원하는 스타일로.", "오늘도\n충분히 잘하고 있어요.\n조금만 더 힘내요! ♡"),
     "블러썸": ("오늘도 좋은 하루 보내요! ♡", "오늘도\n예쁜 하루가 될 거예요.\n언제나 응원해요! ♡"),
-    "서연": ("오빠 사랑해~\n나랑 놀자~ ♡", "오늘도\n좋은 하루 보내요! ♡"),
+    "서연": ("오늘도 좋은 하루 보내요! ♡", "오늘도 좋아해요 ♡\n- 서연"),
     "다크": ("집중할 땐 조용하고 편안하게.", "지금도 충분히 잘하고 있어요.\n좋은 하루 마무리하세요. 🌙"),
     "드림": ("맑은 하루 되세요! ☀", "오늘도\n좋은 일이 가득하길! 🌿"),
     "우드": ("하나씩, 차근차근.", "오늘도\n되어있는 하루가 되길. ♡"),
@@ -86,12 +87,14 @@ def db():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(APP_TITLE+" v1.1.0 · 서연 개인스킨")
-        self.geometry("1280x800")
-        self.minsize(1100,700)
+        self.title(APP_TITLE+" v1.2.0 · 서연 개인스킨")
+        self.geometry("1460x900")
+        self.minsize(1280,800)
         self.configure(bg=BG)
+        self.setup_fonts()
         self.conn=db()
         self.ensure_schema()
+        self.refresh_saved_font()
         self.notified=set()
         self.skin_name=self.load_skin()
         self.apply_palette()
@@ -103,6 +106,44 @@ class App(tk.Tk):
         self.apply_background_asset()
         self.after(15000, self.check_alarms)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def setup_fonts(self):
+        """Windows에 설치된 글꼴 중 서연 스킨에 어울리는 글꼴을 자동 선택한다.
+        글꼴 파일을 번들하지 않으므로 사용자의 PC 환경을 그대로 존중한다.
+        """
+        try:
+            families=set(tkfont.families(self))
+        except Exception:
+            families=set()
+        self.ui_font_family = "Pretendard" if "Pretendard" in families else ("Noto Sans KR" if "Noto Sans KR" in families else "Malgun Gothic")
+        candidates=[
+            "나눔손글씨 펜", "나눔손글씨 딸에게 엄마가", "나눔손글씨 사랑해 아들",
+            "나눔손글씨 바른히피", "나눔손글씨 느릿느릿체", "Cafe24 Dongdong",
+            "Cafe24 써라운드", "UhBee MiMi", "휴먼편지체", "HY엽서M"
+        ]
+        self.hand_font_candidates=[f for f in candidates if f in families]
+        saved=""
+        try:
+            # settings 테이블이 아직 없을 수 있으므로 실제 적용은 DB 생성 뒤 다시 한 번 확인된다.
+            pass
+        except Exception:
+            pass
+        self.hand_font_family = self.hand_font_candidates[0] if self.hand_font_candidates else self.ui_font_family
+
+    def ui_font(self, size=10, weight="normal"):
+        return (self.ui_font_family, size, weight)
+
+    def hand_font(self, size=11, weight="normal"):
+        return (self.hand_font_family, size, weight)
+
+    def refresh_saved_font(self):
+        saved=self.get_setting("seoyeon_hand_font","") if hasattr(self,"conn") else ""
+        if saved:
+            try:
+                if saved in set(tkfont.families(self)):
+                    self.hand_font_family=saved
+            except Exception:
+                pass
 
     def on_close(self):
         try:
@@ -136,11 +177,7 @@ class App(tk.Tk):
         return img
 
     def apply_background_asset(self):
-        """깜박임 방지형 스킨 이미지 적용.
-        - 전체 배경은 순수 색상
-        - 우측 무드 카드 이미지 1장만 사용
-        - PhotoImage는 스킨별 1회 생성 후 캐시
-        """
+        """스킨 이미지 적용. 서연 스킨은 우측 대형 포토 패널을 사용한다."""
         self.configure(bg=BG)
         if hasattr(self,"bg_layer"):
             self.bg_layer.configure(bg=BG,image="")
@@ -149,7 +186,6 @@ class App(tk.Tk):
 
         if not PIL_OK or not hasattr(self,"mood"):
             return
-
         if not hasattr(self,"_hero_cache"):
             self._hero_cache={}
 
@@ -157,35 +193,38 @@ class App(tk.Tk):
         herop=self.get_current_hero_path(aset)
         if not herop:
             return
-
         try:
-            # 서연 개인스킨은 사진 영역을 더 크게 사용
-            w,h=(380,320) if self.skin_name=="서연" else (315,230)
-            cache_key=(self.skin_name,w,h)
-
+            # 실제 패널 크기를 기준으로 이미지를 다시 맞춘다.
+            self.update_idletasks()
+            w=max(260, self.mood.winfo_width())
+            h=max(320, self.mood.winfo_height())
+            cache_key=(self.skin_name,str(herop),w,h)
             if cache_key not in self._hero_cache:
                 himg=self.cover_image(herop,w,h,0)
                 self._hero_cache[cache_key]=ImageTk.PhotoImage(himg)
-
             self._hero_photo=self._hero_cache[cache_key]
 
-            # build() 때 한 번 만든 label만 재사용
             if not hasattr(self,"mood_image_label") or not self.mood_image_label.winfo_exists():
                 self.mood_image_label=tk.Label(self.mood,borderwidth=0,bg=BLUE2)
-                self.mood_image_label.place(x=0,y=0,width=w,height=h)
-
+                self.mood_image_label.place(x=0,y=0,relwidth=1,relheight=1)
                 self.mood_text_label=tk.Label(
-                    self.mood,font=("Malgun Gothic",9,"bold"),
-                    padx=10,pady=5,anchor="w"
+                    self.mood,font=(self.hand_font_family,11),
+                    padx=12,pady=7,anchor="w"
                 )
-                text_y=h-58
-                self.mood_text_label.place(x=12,y=text_y,width=w-24,height=46)
+                self.mood_text_label.place(relx=0.05,rely=0.78,relwidth=0.62,height=62)
+                self.mood_change_hint=tk.Label(
+                    self.mood,text="설정에서 사진 변경",font=self.ui_font(8),
+                    padx=9,pady=5,bg=THEMES[self.skin_name]["panel"],fg=THEMES[self.skin_name]["muted"]
+                )
+                self.mood_change_hint.place(relx=0.66,rely=0.93,relwidth=0.30,height=30)
 
             self.mood_image_label.configure(image=self._hero_photo)
             self.mood_text_label.configure(
-                text=SKIN_COPY[self.skin_name][1].replace("\n","  "),
+                text=SKIN_COPY[self.skin_name][1],
                 bg=THEMES[self.skin_name]["panel"],
-                fg=THEMES[self.skin_name]["text"]
+                fg=THEMES[self.skin_name]["text"],
+                font=(self.hand_font_family,11),
+                justify="left", anchor="w"
             )
         except Exception as ex:
             print("skin asset error:",ex)
@@ -221,7 +260,7 @@ class App(tk.Tk):
                 w.destroy()
                 self.rebuild_ui()
             b=tk.Button(box,text=labels[name],command=select,bg=t["accent"],fg="white",relief="flat",
-                        font=("Malgun Gothic",11,"bold"),width=21,pady=14)
+                        font=self.ui_font(11,"bold"),width=21,pady=14)
             b.grid(row=i//2,column=i%2,padx=8,pady=8,sticky="ew")
         box.columnconfigure(0,weight=1); box.columnconfigure(1,weight=1)
         tk.Label(w,text="※ 서연 스킨의 사진은 설정에서 언제든 바꿀 수 있습니다.\n기존 6종 스킨은 그대로 유지됩니다.",
@@ -283,7 +322,7 @@ class App(tk.Tk):
         messagebox.showinfo("기본 사진","서연 스킨 기본 사진으로 돌아왔어요. ♡",parent=parent or self)
 
     def open_settings(self):
-        w=tk.Toplevel(self); w.title("설정"); w.geometry("520x420"); w.configure(bg=PANEL); w.transient(self); w.grab_set()
+        w=tk.Toplevel(self); w.title("설정"); w.geometry("540x520"); w.configure(bg=PANEL); w.transient(self); w.grab_set()
         tk.Label(w,text="설정",font=("Malgun Gothic",18,"bold"),bg=PANEL,fg=TEXT).pack(anchor="w",padx=24,pady=(22,6))
         tk.Label(w,text="개인 스킨과 프로그램 설정을 관리합니다.",font=("Malgun Gothic",9),bg=PANEL,fg=MUTED).pack(anchor="w",padx=24,pady=(0,18))
 
@@ -300,11 +339,26 @@ class App(tk.Tk):
 
         skin_select=tk.Frame(w,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
         skin_select.pack(fill="x",padx=24,pady=7)
-        tk.Label(skin_select,text="스킨",font=("Malgun Gothic",11,"bold"),bg=PANEL,fg=TEXT).pack(side="left",padx=16,pady=14)
+        tk.Label(skin_select,text="스킨",font=self.ui_font(11,"bold"),bg=PANEL,fg=TEXT).pack(side="left",padx=16,pady=14)
         tk.Button(skin_select,text="스킨 선택 열기",command=lambda:(w.destroy(),self.choose_skin()),bg=BLUE2,fg=TEXT,relief="flat",padx=14,pady=7).pack(side="right",padx=14)
 
+        font_card=tk.Frame(w,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        font_card.pack(fill="x",padx=24,pady=7)
+        tk.Label(font_card,text="서연 문구 글꼴",font=self.ui_font(11,"bold"),bg=PANEL,fg=TEXT).pack(anchor="w",padx=16,pady=(12,4))
+        choices=self.hand_font_candidates[:] or [self.ui_font_family]
+        current=tk.StringVar(value=self.hand_font_family)
+        combo=ttk.Combobox(font_card,textvariable=current,values=choices,state="readonly")
+        combo.pack(fill="x",padx=16,pady=(0,8))
+        def apply_font():
+            chosen=current.get().strip() or self.ui_font_family
+            self.set_setting("seoyeon_hand_font",chosen)
+            self.hand_font_family=chosen
+            messagebox.showinfo("글꼴 변경","서연 문구 글꼴을 바꿨어요. ♡",parent=w)
+            w.destroy(); self.rebuild_ui()
+        tk.Button(font_card,text="글꼴 적용",command=apply_font,bg=BLUE2,fg=TEXT,relief="flat",padx=14,pady=7).pack(anchor="e",padx=16,pady=(0,12))
+
         tk.Label(w,text="서연 스킨 문구  ·  오빠 사랑해~  나랑 놀자~ ♡",bg=PANEL,fg=BLUE,
-                 font=("Malgun Gothic",9,"bold")).pack(anchor="w",padx=24,pady=(14,0))
+                 font=(self.hand_font_family,10)).pack(anchor="w",padx=24,pady=(10,0))
 
     def rebuild_ui(self):
         for child in self.winfo_children():
@@ -361,110 +415,123 @@ class App(tk.Tk):
         self.after(15000, self.check_alarms)
 
     def build(self):
-        self.columnconfigure(1,weight=1)
-        self.rowconfigure(0,weight=1)
+        # 시안 기준 구조: [상단 헤더] + [왼쪽 메뉴 | 중앙 일정 | 오른쪽 큰 사진]
+        self.rowconfigure(0,weight=0)
+        self.rowconfigure(1,weight=1)
+        self.columnconfigure(0,weight=1)
 
-        # 전체 스킨 배경
         self.bg_layer=tk.Label(self,bg=BG,borderwidth=0)
         self.bg_layer.place(x=0,y=0,relwidth=1,relheight=1)
         self.bg_layer.lower()
 
-        # LEFT SIDEBAR
-        side=tk.Frame(self,bg=PANEL,width=190,highlightthickness=1,highlightbackground=BORDER)
-        side.grid(row=0,column=0,sticky="nsw")
-        side.grid_propagate(False)
+        # TOP HEADER
+        topbar=tk.Frame(self,bg=PANEL,height=62,highlightthickness=0)
+        topbar.grid(row=0,column=0,sticky="ew")
+        topbar.grid_propagate(False)
+        topbar.columnconfigure(1,weight=1)
+        tk.Label(topbar,text="♥",font=self.ui_font(20,"bold"),bg=PANEL,fg=BLUE).grid(row=0,column=0,padx=(24,8),pady=12)
+        titlebox=tk.Frame(topbar,bg=PANEL)
+        titlebox.grid(row=0,column=1,sticky="w")
+        tk.Label(titlebox,text="오늘 할 일",font=self.ui_font(18,"bold"),bg=PANEL,fg=TEXT).pack(side="left")
+        tk.Label(titlebox,text="하루를 더 특별하게, 원하는 스타일로.",font=self.ui_font(9),bg=PANEL,fg=MUTED).pack(side="left",padx=(22,0),pady=(5,0))
+        top_right="좋은 하루, 좋은 너와 함께 ♡" if self.skin_name=="서연" else SKIN_COPY[self.skin_name][0]
+        tk.Label(topbar,text=top_right,font=(self.hand_font_family,10),bg=PANEL,fg=BLUE).grid(row=0,column=2,padx=(10,24),sticky="e")
 
-        top_side=tk.Frame(side,bg=PANEL)
-        top_side.pack(fill="x")
-        tk.Label(top_side,text="✓  오늘 할 일",font=("Malgun Gothic",17,"bold"),
-                 bg=PANEL,fg=TEXT).pack(pady=(25,4))
-        tk.Label(top_side,text=f"{self.skin_name} SKIN",font=("Malgun Gothic",8,"bold"),
-                 bg=PANEL,fg=BLUE).pack(pady=(0,14))
+        body=tk.Frame(self,bg=BG)
+        body.grid(row=1,column=0,sticky="nsew",padx=18,pady=(0,18))
+        body.rowconfigure(0,weight=1)
+        body.columnconfigure(0,weight=0)
+        body.columnconfigure(1,weight=1)
+        body.columnconfigure(2,weight=0)
+
+        # LEFT SIDEBAR
+        side=tk.Frame(body,bg=PANEL,width=190,highlightthickness=1,highlightbackground=BORDER)
+        side.grid(row=0,column=0,sticky="ns",padx=(0,16),pady=0)
+        side.grid_propagate(False)
 
         menu=[
             ("⌂  오늘",self.go_today),
             ("▣  내일",self.go_tomorrow),
-            ("□  일정",self.focus_calendar),
+            ("▦  일정",self.focus_calendar),
             ("▤  메모",self.show_memos),
             ("◉  통계",self.show_stats),
             ("◌  스킨",self.choose_skin),
             ("⚙  설정",self.open_settings)
         ]
-        for txt,cmd in menu:
+        for idx,(txt,cmd) in enumerate(menu):
             active=txt.endswith("오늘")
-            tk.Button(
-                top_side,text=txt,command=cmd,anchor="w",relief="flat",bd=0,
-                bg=BLUE2 if active else PANEL,fg=BLUE if active else TEXT,
-                activebackground=BLUE2,
-                font=("Malgun Gothic",11,"bold" if active else "normal"),
-                padx=24,pady=9
-            ).pack(fill="x",padx=10,pady=2)
+            tk.Button(side,text=txt,command=cmd,anchor="w",relief="flat",bd=0,
+                      bg=BLUE2 if active else PANEL,fg=BLUE if active else TEXT,
+                      activebackground=BLUE2,font=self.ui_font(11,"bold" if active else "normal"),
+                      padx=24,pady=12).pack(fill="x",padx=10,pady=(14 if idx==0 else 2,2))
 
-        # 좌측 하단은 스킨 이미지가 실제로 보이는 영역
         bottom_side=tk.Frame(side,bg=PANEL)
-        bottom_side.pack(side="bottom",fill="x")
+        bottom_side.pack(side="bottom",fill="x",padx=10,pady=12)
         self.side_art=tk.Label(
-            bottom_side,bg=BLUE2,fg=TEXT,borderwidth=0,
+            bottom_side,bg=PANEL,fg=BLUE,borderwidth=0,
             text=("오빠 사랑해~\n나랑 놀자~ ♡" if self.skin_name=="서연" else "오늘도\n좋은 하루가 될 거예요. ♡"),
-            font=("Malgun Gothic",9),justify="left",anchor="sw",
-            padx=16,pady=18
+            font=(self.hand_font_family,13),justify="left",anchor="sw",padx=12,pady=12
         )
-        self.side_art.pack(fill="x",padx=10,pady=(0,10))
-        tk.Label(bottom_side,text=SKIN_COPY[self.skin_name][0],bg=PANEL,fg=MUTED,
-                 font=("Malgun Gothic",8),wraplength=150,justify="left").pack(
-                     fill="x",padx=16,pady=(0,16)
-                 )
+        self.side_art.pack(fill="x")
 
-        # CENTER
-        center=tk.Frame(self,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        center.grid(row=0,column=1,sticky="nsew",padx=18,pady=18)
+        # CENTER CONTENT
+        center=tk.Frame(body,bg=BG)
+        center.grid(row=0,column=1,sticky="nsew",padx=(0,16))
         center.columnconfigure(0,weight=1)
-        center.rowconfigure(2,weight=1)
+        center.rowconfigure(0,weight=0)
+        center.rowconfigure(1,weight=3,minsize=390)
+        center.rowconfigure(2,weight=2,minsize=250)
 
-        self.head=tk.Label(center,text="",font=("Malgun Gothic",23,"bold"),
-                           bg=PANEL,fg=TEXT,anchor="w")
-        self.head.grid(row=0,column=0,sticky="ew",padx=2,pady=(0,2))
-        self.sub=tk.Label(center,text="",font=("Malgun Gothic",10),
-                          bg=PANEL,fg=MUTED,anchor="w")
-        self.sub.grid(row=1,column=0,sticky="ew",padx=2,pady=(0,16))
+        headrow=tk.Frame(center,bg=BG,height=64)
+        headrow.grid(row=0,column=0,sticky="ew",pady=(4,12))
+        headrow.grid_propagate(False)
+        headrow.columnconfigure(0,weight=1)
+        self.head=tk.Label(headrow,text="",font=self.ui_font(25,"bold"),bg=BG,fg=TEXT,anchor="w")
+        self.head.grid(row=0,column=0,sticky="w",pady=(6,0))
+        self.sub=tk.Label(headrow,text="",font=(self.hand_font_family,11),bg=BG,fg=BLUE,anchor="e")
+        self.sub.grid(row=0,column=1,sticky="e",padx=(12,4),pady=(9,0))
 
+        # TASK CARD
         card=tk.Frame(center,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        card.grid(row=2,column=0,sticky="nsew")
+        card.grid(row=1,column=0,sticky="nsew")
         card.columnconfigure(0,weight=1)
-        card.rowconfigure(1,weight=1)
+        card.rowconfigure(0,weight=1)
+        self.list=tk.Frame(card,bg=PANEL)
+        self.list.grid(row=0,column=0,sticky="nsew",padx=18,pady=(16,8))
 
-        top=tk.Frame(card,bg=PANEL)
-        top.grid(row=0,column=0,sticky="ew",padx=18,pady=15)
-        top.columnconfigure(0,weight=1)
-        self.entry=tk.Entry(top,font=("Malgun Gothic",11),relief="flat",bg=BLUE2,fg=TEXT)
+        addrow=tk.Frame(card,bg=PANEL)
+        addrow.grid(row=1,column=0,sticky="ew",padx=18,pady=(0,16))
+        addrow.columnconfigure(0,weight=1)
+        self.entry=tk.Entry(addrow,font=self.ui_font(11),relief="flat",bg=BLUE2,fg=TEXT,insertbackground=TEXT)
         self.entry.grid(row=0,column=0,sticky="ew",ipady=10)
-        self.time=tk.Entry(top,font=("Malgun Gothic",10),width=8,justify="center",
-                           relief="flat",bg=BLUE2,fg=TEXT)
+        self.time=tk.Entry(addrow,font=self.ui_font(10),width=8,justify="center",relief="flat",bg=BLUE2,fg=TEXT,insertbackground=TEXT)
         self.time.insert(0,"시간")
         self.time.grid(row=0,column=1,padx=8,ipady=10)
-        tk.Button(top,text="+ 추가",command=self.add_task,bg=BLUE,fg="white",relief="flat",
-                  font=("Malgun Gothic",10,"bold"),padx=18,pady=9).grid(row=0,column=2)
+        tk.Button(addrow,text="+ 추가",command=self.add_task,bg=BLUE,fg="white",relief="flat",
+                  font=self.ui_font(10,"bold"),padx=18,pady=9).grid(row=0,column=2)
         self.entry.bind("<Return>",lambda e:self.add_task())
 
-        self.list=tk.Frame(card,bg=PANEL)
-        self.list.grid(row=1,column=0,sticky="nsew",padx=18,pady=(0,15))
+        # LOWER CARDS
+        lower=tk.Frame(center,bg=BG)
+        lower.grid(row=2,column=0,sticky="nsew",pady=(14,0))
+        lower.columnconfigure(0,weight=1)
+        lower.columnconfigure(1,weight=1)
+        lower.rowconfigure(0,weight=1)
+        self.calbox=tk.Frame(lower,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        self.calbox.grid(row=0,column=0,sticky="nsew",padx=(0,7))
+        self.summary=tk.Frame(lower,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
+        self.summary.grid(row=0,column=1,sticky="nsew",padx=(7,0))
 
-        # RIGHT
-        right_w=390 if self.skin_name=="서연" else 325
-        right=tk.Frame(self,bg=PANEL,width=right_w,highlightthickness=1,highlightbackground=BORDER)
-        right.grid(row=0,column=2,sticky="nse",padx=(0,18),pady=18)
+        # RIGHT HERO PHOTO PANEL
+        right_w=450 if self.skin_name=="서연" else 330
+        right=tk.Frame(body,bg=PANEL,width=right_w,highlightthickness=1,highlightbackground=BORDER)
+        right.grid(row=0,column=2,sticky="ns",pady=0)
         right.grid_propagate(False)
-
-        self.calbox=tk.Frame(right,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        self.calbox.pack(fill="x")
-
-        self.summary=tk.Frame(right,bg=PANEL,highlightthickness=1,highlightbackground=BORDER)
-        self.summary.pack(fill="x",pady=(14,0))
-
-        mood_w,mood_h=((380,320) if self.skin_name=="서연" else (315,230))
-        self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER,width=mood_w,height=mood_h)
-        self.mood.pack(fill="x",pady=(14,0))
-        self.mood.pack_propagate(False)
+        right.rowconfigure(0,weight=1)
+        right.columnconfigure(0,weight=1)
+        self.mood=tk.Frame(right,bg=BLUE2,highlightthickness=0)
+        self.mood.grid(row=0,column=0,sticky="nsew")
+        self.mood.bind("<Configure>",lambda e:self.apply_background_asset())
 
     def go_today(self): self.selected=date.today(); self.cal_year=self.selected.year; self.cal_month=self.selected.month; self.refresh()
     def go_tomorrow(self): self.selected=date.today()+timedelta(days=1); self.cal_year=self.selected.year; self.cal_month=self.selected.month; self.refresh()
@@ -501,6 +568,17 @@ class App(tk.Tk):
     def delete(self,tid):
         if messagebox.askyesno("삭제","이 할 일을 삭제할까요?"):
             self.conn.execute("DELETE FROM tasks WHERE id=?",(tid,)); self.conn.commit(); self.refresh()
+    def task_menu(self,tid,title,tm,memo):
+        m=tk.Menu(self,tearoff=0,font=self.ui_font(9))
+        m.add_command(label="수정",command=lambda:self.edit(tid,title,tm,memo))
+        m.add_command(label="삭제",command=lambda:self.delete(tid))
+        try:
+            x=self.winfo_pointerx(); y=self.winfo_pointery()
+            m.tk_popup(x,y)
+        finally:
+            try: m.grab_release()
+            except Exception: pass
+
     def edit(self,tid,title,tm,memo):
         w=tk.Toplevel(self); w.title("할 일 수정"); w.geometry("420x330"); w.configure(bg=PANEL); w.transient(self); w.grab_set()
         tk.Label(w,text="할 일 수정",font=("Malgun Gothic",16,"bold"),bg=PANEL,fg=TEXT).pack(anchor="w",padx=22,pady=(20,10))
@@ -519,39 +597,42 @@ class App(tk.Tk):
         names=["월","화","수","목","금","토","일"]
         self.head.config(text=f"{self.selected.year}년 {self.selected.month}월 {self.selected.day}일 ({names[self.selected.weekday()]})")
         left = "오늘" if self.selected==date.today() else ("내일" if self.selected==date.today()+timedelta(days=1) else "선택한 날짜")
-        self.sub.config(text=f"{left}의 할 일   ·   {SKIN_COPY[self.skin_name][0]}")
+        if self.skin_name=="서연":
+            self.sub.config(text=SKIN_COPY[self.skin_name][0])
+        else:
+            self.sub.config(text=f"{left}의 할 일   ·   {SKIN_COPY[self.skin_name][0]}")
         for x in self.list.winfo_children(): x.destroy()
         rows=self.conn.execute("SELECT id,title,task_time,memo,done FROM tasks WHERE task_date=? ORDER BY done, CASE WHEN task_time='' THEN '99:99' ELSE task_time END,id",(self.selected.isoformat(),)).fetchall()
         if not rows:
-            tk.Label(self.list,text="아직 등록된 할 일이 없어요.\n위에서 첫 할 일을 추가해 보세요.",bg=PANEL,fg=MUTED,font=("Malgun Gothic",11),pady=55).pack()
+            tk.Label(self.list,text="아직 등록된 할 일이 없어요.\n아래에서 첫 할 일을 추가해 보세요.",bg=PANEL,fg=MUTED,font=self.ui_font(11),pady=55).pack()
         for tid,title,tm,memo,done in rows:
             r=tk.Frame(self.list,bg=BLUE2,highlightthickness=1,highlightbackground=BORDER); r.pack(fill="x",pady=4,ipady=3)
-            tk.Button(r,text="✓" if done else "□",command=lambda i=tid,d=done:self.toggle(i,d),relief="flat",bg=BLUE2,fg=BLUE,font=("Malgun Gothic",13)).pack(side="left",padx=(7,0))
-            lab=tk.Label(r,text=title,bg=BLUE2,fg=DONE if done else TEXT,font=("Malgun Gothic",11),anchor="w")
+            tk.Button(r,text="✓" if done else "□",command=lambda i=tid,d=done:self.toggle(i,d),relief="flat",bg=BLUE2,fg=BLUE,font=self.ui_font(13)).pack(side="left",padx=(7,0))
+            lab=tk.Label(r,text=title,bg=BLUE2,fg=DONE if done else TEXT,font=self.ui_font(11),anchor="w")
             lab.pack(side="left",fill="x",expand=True,padx=6)
+            tk.Button(r,text="⋯",command=lambda i=tid,t=title,tt=tm,m=memo:self.task_menu(i,t,tt,m),
+                      relief="flat",bg=BLUE2,fg=MUTED,font=self.ui_font(13)).pack(side="right",padx=(2,8))
             if tm:
-                tk.Label(r,text=tm,bg=BLUE2,fg=MUTED,font=("Malgun Gothic",10)).pack(side="right",padx=(6,8))
-            tk.Button(r,text="수정",command=lambda i=tid,t=title,tt=tm,m=memo:self.edit(i,t,tt,m),relief="flat",bg=BLUE2,fg=MUTED).pack(side="right")
-            tk.Button(r,text="삭제",command=lambda i=tid:self.delete(i),relief="flat",bg=BLUE2,fg=MUTED).pack(side="right")
+                tk.Label(r,text=tm,bg=BLUE2,fg=MUTED,font=self.ui_font(10)).pack(side="right",padx=(6,8))
         self.draw_calendar(); self.draw_summary()
 
     def draw_calendar(self):
         for x in self.calbox.winfo_children(): x.destroy()
         nav=tk.Frame(self.calbox,bg=PANEL); nav.pack(fill="x",padx=12,pady=(12,6))
         tk.Button(nav,text="‹",command=lambda:self.shift_month(-1),relief="flat",bg=PANEL,fg=TEXT).pack(side="left")
-        tk.Label(nav,text=f"{self.cal_year}년 {self.cal_month}월",bg=PANEL,fg=TEXT,font=("Malgun Gothic",11,"bold")).pack(side="left",expand=True)
+        tk.Label(nav,text=f"{self.cal_year}년 {self.cal_month}월",bg=PANEL,fg=TEXT,font=self.ui_font(11,"bold")).pack(side="left",expand=True)
         tk.Button(nav,text="›",command=lambda:self.shift_month(1),relief="flat",bg=PANEL,fg=TEXT).pack(side="right")
         grid=tk.Frame(self.calbox,bg=PANEL); grid.pack(padx=10,pady=(0,12))
-        for c,n in enumerate(["월","화","수","목","금","토","일"]):
-            tk.Label(grid,text=n,bg=PANEL,fg=MUTED,width=4,font=("Malgun Gothic",9)).grid(row=0,column=c,pady=3)
-        weeks=calendar.Calendar(firstweekday=0).monthdayscalendar(self.cal_year,self.cal_month)
+        for c,n in enumerate(["일","월","화","수","목","금","토"]):
+            tk.Label(grid,text=n,bg=PANEL,fg=(BLUE if c==0 else MUTED),width=4,font=self.ui_font(9)).grid(row=0,column=c,pady=3)
+        weeks=calendar.Calendar(firstweekday=6).monthdayscalendar(self.cal_year,self.cal_month)
         for rr,wk in enumerate(weeks,1):
             for cc,d in enumerate(wk):
                 if not d: continue
                 dt=date(self.cal_year,self.cal_month,d)
                 cnt=self.conn.execute("SELECT COUNT(*) FROM tasks WHERE task_date=?",(dt.isoformat(),)).fetchone()[0]
                 txt=str(d)+(" •" if cnt else "")
-                bg=BLUE if dt==self.selected else PANEL; fg="white" if dt==self.selected else TEXT
+                bg=BLUE if dt==self.selected else PANEL; fg="white" if dt==self.selected else (BLUE if cc==0 else TEXT)
                 tk.Button(grid,text=txt,width=4,relief="flat",bg=bg,fg=fg,activebackground=BLUE2,
                           command=lambda x=dt:self.select_date(x)).grid(row=rr,column=cc,padx=1,pady=1)
 
@@ -565,13 +646,25 @@ class App(tk.Tk):
 
     def draw_summary(self):
         for x in self.summary.winfo_children(): x.destroy()
-        tk.Label(self.summary,text="오늘 일정",font=("Malgun Gothic",12,"bold"),bg=PANEL,fg=TEXT).pack(anchor="w",padx=16,pady=(15,8))
+        if self.skin_name=="서연":
+            tk.Label(self.summary,text="오늘의 메모 ♡",font=self.ui_font(12,"bold"),bg=PANEL,fg=TEXT).pack(anchor="w",padx=16,pady=(15,8))
+            note=tk.Frame(self.summary,bg=BLUE2,highlightthickness=0)
+            note.pack(fill="both",expand=True,padx=14,pady=(4,10))
+            tk.Label(note,text="오빠~~\n오늘도 화이팅이에요!\n- 서연 ♡",
+                     bg=BLUE2,fg=TEXT,font=(self.hand_font_family,12),justify="left",anchor="nw",padx=18,pady=18).pack(fill="both",expand=True)
+            rows=self.conn.execute("SELECT title,task_time,done FROM tasks WHERE task_date=? ORDER BY task_time",(date.today().isoformat(),)).fetchall()
+            footer=(f"♡  오늘 일정 {len(rows)}개도 같이 챙겨요" if rows else "♡  소중한 하루, 소중한 당신에게")
+            tk.Label(self.summary,text=footer,bg=PANEL,fg=MUTED,font=self.ui_font(8),anchor="w").pack(fill="x",padx=16,pady=(0,12))
+            return
+
+        tk.Label(self.summary,text="오늘 일정",font=self.ui_font(12,"bold"),bg=PANEL,fg=TEXT).pack(anchor="w",padx=16,pady=(15,8))
         rows=self.conn.execute("SELECT title,task_time,done FROM tasks WHERE task_date=? ORDER BY task_time",(date.today().isoformat(),)).fetchall()
         if not rows:
-            tk.Label(self.summary,text="오늘 일정이 없어요.",bg=PANEL,fg=MUTED).pack(anchor="w",padx=16,pady=8)
+            tk.Label(self.summary,text="오늘 일정이 없어요.",bg=PANEL,fg=MUTED,
+                     font=self.ui_font(10),justify="left",anchor="nw",padx=16,pady=18).pack(fill="both",expand=True,padx=14,pady=(4,14))
         for title,tm,done in rows[:9]:
             tk.Label(self.summary,text=f"{'✓' if done else '•'} {tm+'  ' if tm else ''}{title}",bg=PANEL,fg=DONE if done else TEXT,
-                     font=("Malgun Gothic",9),anchor="w",wraplength=265,justify="left").pack(fill="x",padx=16,pady=4)
+                     font=self.ui_font(9),anchor="w",wraplength=265,justify="left").pack(fill="x",padx=16,pady=4)
 
 if __name__=="__main__":
     App().mainloop()

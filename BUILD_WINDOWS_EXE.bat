@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 > nul
-title 오늘 할 일 v1.1.0 - Windows EXE Build
+title 오늘 할 일 v1.2.0 - Windows EXE Build
 echo.
 echo ==========================================
-echo   오늘 할 일 v1.1.0 - EXE 빌드
+echo   오늘 할 일 v1.2.0 - EXE 빌드
 echo ==========================================
 echo.
 py -m pip install -r requirements-build.txt
